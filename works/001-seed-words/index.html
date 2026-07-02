@@ -1,0 +1,242 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字种 · Seed Words</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0a0c; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #ui {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 14px 18px;
+    font: 13px/1.4 "Songti SC", "Noto Serif SC", Georgia, serif;
+    color: rgba(255,255,255,.75);
+    pointer-events: none;
+    background: linear-gradient(rgba(0,0,0,.35), transparent);
+  }
+  #ui > * { pointer-events: auto; }
+  #title { letter-spacing: .12em; opacity: .9; white-space: nowrap; }
+  #title small { opacity: .5; margin-left: .6em; letter-spacing: .05em; }
+  #phrase {
+    flex: 1 1 200px; min-width: 140px; max-width: 420px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.18); border-radius: 6px;
+    color: inherit; font: inherit; padding: 6px 10px; outline: none;
+  }
+  #phrase:focus { border-color: rgba(255,255,255,.45); }
+  button {
+    background: none; border: 1px solid rgba(255,255,255,.25); border-radius: 6px;
+    color: inherit; font: inherit; padding: 6px 12px; cursor: pointer;
+  }
+  button:hover { border-color: rgba(255,255,255,.6); }
+  #status {
+    position: fixed; right: 18px; bottom: 14px;
+    font: 12px/1 "Songti SC", "Noto Serif SC", Georgia, serif;
+    color: rgba(255,255,255,.4); letter-spacing: .2em;
+  }
+  .paper { color-scheme: light; }
+  .paper #ui { color: rgba(30,25,20,.7); background: linear-gradient(rgba(255,255,255,.25), transparent); }
+  .paper #phrase { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.2); }
+  .paper #phrase:focus { border-color: rgba(0,0,0,.5); }
+  .paper button { border-color: rgba(0,0,0,.25); }
+  .paper button:hover { border-color: rgba(0,0,0,.6); }
+  .paper #status { color: rgba(30,25,20,.4); }
+</style>
+
+<canvas id="c"></canvas>
+<div id="ui">
+  <span id="title">字种<small>SEED WORDS</small></span>
+  <input id="phrase" spellcheck="false" placeholder="输入一句话，回车种下它">
+  <button id="save">保存 PNG</button>
+</div>
+<div id="status"></div>
+
+<script>
+"use strict";
+// 《字种》— 每一句话都确定性地长成同一幅画。
+// A phrase is hashed into every parameter below; the same words
+// always grow the same painting.
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const input = document.getElementById("phrase");
+const statusEl = document.getElementById("status");
+
+// ---- deterministic randomness ----------------------------------------
+function cyrb128(str) {
+  let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+  for (let i = 0; i < str.length; i++) {
+    const k = str.charCodeAt(i);
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+  }
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+  h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+  h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+  h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+  return [(h1 ^ h2 ^ h3 ^ h4) >>> 0, (h2 ^ h1) >>> 0, (h3 ^ h1) >>> 0, (h4 ^ h1) >>> 0];
+}
+function sfc32(a, b, c, d) {
+  return function () {
+    a |= 0; b |= 0; c |= 0; d |= 0;
+    const t = (a + b | 0) + d | 0;
+    d = d + 1 | 0;
+    a = b ^ b >>> 9;
+    b = c + (c << 3) | 0;
+    c = (c << 21 | c >>> 11) + t | 0;
+    return ((t >>> 0) / 4294967296);
+  };
+}
+
+// ---- the piece --------------------------------------------------------
+const STEPS_TOTAL = 1500;   // fixed budget: the painting "finishes"
+const STEPS_PER_FRAME = 6;  // constant chunking keeps the result deterministic
+let piece = null;
+
+function makePiece(phrase) {
+  const seed = cyrb128("字种::" + phrase);
+  const rand = sfc32(seed[0], seed[1], seed[2], seed[3]);
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = canvas.width = Math.round(innerWidth * dpr);
+  const H = canvas.height = Math.round(innerHeight * dpr);
+  const S = Math.min(W, H); // scale unit
+
+  // -- palette: one hue family per phrase
+  const paper = rand() < 0.3;
+  const h0 = rand() * 360;
+  const scheme = [0, 0, 0, 30, -30, 150, 180][Math.floor(rand() * 7)];
+  const colors = [];
+  const n = 4 + Math.floor(rand() * 3);
+  for (let i = 0; i < n; i++) {
+    const h = (h0 + (i % 2 ? scheme : 0) + (rand() - 0.5) * 24 + 360) % 360;
+    const s = paper ? 45 + rand() * 40 : 55 + rand() * 40;
+    const l = paper ? 22 + rand() * 30 : 55 + rand() * 30;
+    colors.push([h, s, l]);
+  }
+  const bg = paper ? `hsl(${h0} 28% 95%)` : `hsl(${h0} 30% 6%)`;
+  document.body.classList.toggle("paper", paper);
+
+  // -- flow field: a few smooth plane waves...
+  const waves = [];
+  const nw = 3 + Math.floor(rand() * 3);
+  for (let i = 0; i < nw; i++) {
+    const th = rand() * Math.PI * 2;
+    const f = (2 + rand() * 9) * Math.PI / S;
+    waves.push({ kx: Math.cos(th) * f, ky: Math.sin(th) * f,
+                 ph: rand() * Math.PI * 2, amp: 0.5 + rand() * 1.1 });
+  }
+  const baseAngle = rand() * Math.PI * 2;
+
+  // -- ...plus one vortex per character: longer phrases, richer fields
+  const wells = [];
+  for (const ch of phrase || " ") {
+    const cs = cyrb128(phrase + "::" + ch + "::" + wells.length);
+    const cr = sfc32(cs[0], cs[1], cs[2], cs[3]);
+    wells.push({
+      x: (0.12 + cr() * 0.76) * W,
+      y: (0.12 + cr() * 0.76) * H,
+      r: (0.08 + cr() * 0.22) * S,
+      k: (cr() < 0.5 ? -1 : 1) * (0.6 + cr() * 1.8),
+    });
+    if (wells.length >= 24) break;
+  }
+
+  function field(x, y, out) {
+    let a = baseAngle;
+    for (const w of waves) a += w.amp * Math.sin(x * w.kx + y * w.ky + w.ph);
+    let vx = Math.cos(a), vy = Math.sin(a);
+    for (const w of wells) {
+      const dx = x - w.x, dy = y - w.y;
+      const d2 = dx * dx + dy * dy;
+      const g = w.k * Math.exp(-d2 / (2 * w.r * w.r));
+      vx += -dy / w.r * g;   // tangential swirl
+      vy += dx / w.r * g;
+    }
+    const m = Math.hypot(vx, vy) || 1;
+    out.x = vx / m; out.y = vy / m;
+  }
+
+  // -- particles
+  const count = Math.round(1200 + rand() * 1400);
+  const parts = [];
+  function spawn(p) {
+    p.x = rand() * W; p.y = rand() * H;
+    p.life = 0;
+    p.ttl = 40 + rand() * 160;
+    p.speed = (0.9 + rand() * 1.6) * S / 900 * dpr;
+    p.width = [0.5, 0.8, 1.2, 2.2][Math.floor(rand() * 4)] * dpr;
+    const c = colors[Math.floor(rand() * colors.length)];
+    const h = (c[0] + (rand() - 0.5) * 14 + 360) % 360;
+    p.color = `hsl(${h.toFixed(1)} ${c[1].toFixed(1)}% ${(c[2] + (rand() - 0.5) * 12).toFixed(1)}%)`;
+  }
+  for (let i = 0; i < count; i++) { const p = {}; spawn(p); parts.push(p); }
+
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  ctx.lineCap = "round";
+  ctx.globalCompositeOperation = paper ? "source-over" : "lighter";
+  ctx.globalAlpha = paper ? 0.07 : 0.05;
+
+  const v = { x: 0, y: 0 };
+  return {
+    phrase, W, H, dpr, step: 0,
+    tick() {
+      for (const p of parts) {
+        field(p.x, p.y, v);
+        const nx = p.x + v.x * p.speed, ny = p.y + v.y * p.speed;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = p.width;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(nx, ny); ctx.stroke();
+        p.x = nx; p.y = ny;
+        if (++p.life > p.ttl || nx < -9 || ny < -9 || nx > W + 9 || ny > H + 9) spawn(p);
+      }
+      this.step++;
+    },
+    sign() { // caption baked into the finished painting
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = paper ? "rgba(30,25,20,.8)" : "rgba(255,255,255,.8)";
+      ctx.font = `${Math.round(11 * dpr)}px "Songti SC","Noto Serif SC",Georgia,serif`;
+      ctx.textAlign = "right";
+      ctx.fillText(`「${phrase}」`, W - 16 * dpr, H - 16 * dpr);
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+// ---- run ---------------------------------------------------------------
+function start(phrase) {
+  phrase = (phrase || "").trim() || "字里有光";
+  input.value = phrase;
+  try { history.replaceState(null, "", "#" + encodeURIComponent(phrase)); } catch (e) {}
+  piece = makePiece(phrase);
+  statusEl.textContent = "生长中";
+}
+
+function frame() {
+  if (piece && piece.step < STEPS_TOTAL) {
+    for (let i = 0; i < STEPS_PER_FRAME && piece.step < STEPS_TOTAL; i++) piece.tick();
+    if (piece.step >= STEPS_TOTAL) { piece.sign(); statusEl.textContent = "已完成"; }
+  }
+  requestAnimationFrame(frame);
+}
+
+input.addEventListener("keydown", e => { if (e.key === "Enter") { start(input.value); input.blur(); } });
+document.getElementById("save").addEventListener("click", () => {
+  const a = document.createElement("a");
+  a.download = `seed-words-${(piece.phrase).slice(0, 24)}.png`;
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+});
+let resizeTimer;
+addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => start(input.value), 250);
+});
+
+start(decodeURIComponent(location.hash.slice(1)) || "字里有光");
+requestAnimationFrame(frame);
+</script>
