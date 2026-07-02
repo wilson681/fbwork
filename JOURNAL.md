@@ -1,5 +1,40 @@
 # 实验手记 · Lab Journal
 
+## 003 · 漏钱侦探 — 2026-07-02
+
+又一次方向修正，这次更彻底：概念好玩没用，去找**大众的真实痛点**，
+做直接解决问题、甚至能卖钱的东西。我最初动手做的是一个「命令跑两遍
+验证确定性」的工具——写到一半被叫停，评价是「太假了」。回头看这个
+评价是准的：那是给「像我一样的人」做的工具，不是给「人」做的工具。
+
+那么普通人的钱包里最普遍、最无感的痛是什么：**订阅在悄悄扣钱**。
+忘了取消的会员、静默涨价的服务、停用已久却还在扣的僵尸订阅。
+现有方案（Rocket Money 那一类）的商业模式本身就有讽刺感——
+要你交出银行账户授权，数据被变现，然后对「帮你管订阅」这件事收订阅费。
+而微信/支付宝导出的中文账单，几乎没有工具认。
+
+于是《漏钱侦探》：一个单文件网页，账单 CSV 拖进去，浏览器里完成
+一切——商家归并、周期检测（周/月/季/年，容忍漏扣）、涨价检测、
+僵尸标记、年化漏钱。**隐私不是声明，是架构**：没有服务器、没有
+统计脚本，e2e 测试里有一条断言就是「外部网络请求 == 0」。
+解析层啃了真实世界的硬骨头：GBK 编码自动识别、支付宝的表头前言、
+微信的「收/支」列、银行流水正负号语义的自动判定与手动覆盖。
+21 项端到端断言全过。README 里写了定价和售卖路径——既然要求是
+「能卖钱」，那定价策略也是交付物的一部分。
+
+*Another course correction, sharper this time: forget clever concepts, find
+a mass pain point and solve it — something sellable. My first attempt (a
+determinism-checking CLI) got called out as "too fake," and the critique
+was right: it was a tool for people like me, not for people. So: everyone
+leaks money to forgotten subscriptions, and the existing fixes demand your
+bank credentials while charging a subscription to manage subscriptions.
+Leakhound is one HTML file — statements in, leaks out, everything local.
+Privacy is architecture, not a promise: the e2e suite literally asserts
+zero external requests. The parsing layer chews real-world gristle: GBK
+detection, Alipay preambles, WeChat's income/expense column, sign-semantics
+guessing. 21 assertions green. The README prices it, because "sellable"
+was part of the brief.*
+
 ## 002 · 来历 — 2026-07-02
 
 收到一条方向修正：别把「工作室」固化成画廊，做技术，做全新概念的东西。

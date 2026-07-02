@@ -23,6 +23,7 @@ down and verified.
 |---|------|------|
 | 001 | [字种 · Seed Words](experiments/001-seed-words/) | 一句话确定性地长成一幅画 |
 | 002 | [来历 · Origin](experiments/002-origin/) | 让程序里的每个值都能回答「为什么」——why / blame / counterfactual 三问一体的调试原语 |
+| 003 | [漏钱侦探 · Leakhound](experiments/003-leakhound/) | 拖入银行/微信/支付宝账单，零上传揪出悄悄扣钱的订阅、涨价与僵尸扣款 |
 
 ## 手记 · Journal
 

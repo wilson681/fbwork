@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>漏钱侦探 · Leakhound — 找出悄悄扣你钱的订阅</title>
+<style>
+  :root {
+    --plane: #f9f9f7; --surface: #fcfcfb;
+    --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,.10);
+    --series-sub: #2a78d6; --series-other: #a9a79f;
+    --crit: #d03b3b; --warn: #b97f00; --good: #006300;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --plane: #0d0d0d; --surface: #1a1a19;
+      --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,.10);
+      --series-sub: #3987e5; --series-other: #5a5953;
+      --crit: #e66767; --warn: #fab219; --good: #0ca30c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--plane); color: var(--ink);
+    font: 15px/1.6 system-ui, -apple-system, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 20px 60px; }
+  header.top { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin: 18px 0 6px; }
+  .logo { font-size: 26px; font-weight: 700; letter-spacing: .02em; }
+  .logo small { font-weight: 500; color: var(--muted); margin-left: 8px; font-size: 14px; }
+  .tagline { color: var(--ink-2); margin: 0 0 14px; }
+  .privacy {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--ring); border-radius: 999px;
+    padding: 4px 12px; font-size: 13px; color: var(--ink-2); background: var(--surface);
+  }
+  .privacy b { color: var(--good); font-weight: 600; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--ring);
+    border-radius: 10px; padding: 18px 20px; margin: 14px 0;
+  }
+  #drop {
+    border: 1.5px dashed var(--axis); border-radius: 10px;
+    padding: 34px 20px; text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop.hover { border-color: var(--series-sub); background: color-mix(in srgb, var(--series-sub) 6%, var(--surface)); }
+  #drop .big { font-size: 17px; font-weight: 600; }
+  #drop p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+  .btnrow { text-align: center; margin-top: 14px; }
+  button, select {
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--axis); border-radius: 7px; padding: 6px 14px; cursor: pointer;
+  }
+  button:hover { border-color: var(--ink-2); }
+  button.primary { background: var(--series-sub); border-color: var(--series-sub); color: #fff; font-weight: 600; }
+  select { padding: 4px 8px; font-size: 13px; }
+
+  .filecard { font-size: 13px; }
+  .filecard .fhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filecard .fname { font-weight: 600; font-size: 14px; }
+  .filecard .fmeta { color: var(--muted); }
+  .filecard .fmaps { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; align-items: center; color: var(--ink-2); }
+  .filecard label { display: inline-flex; gap: 6px; align-items: center; }
+  .filecard .rm { margin-left: auto; color: var(--muted); border: none; background: none; }
+  .filecard .err { color: var(--crit); margin-top: 8px; }
+
+  #tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+  .tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 16px 18px; }
+  .tile .lbl { font-size: 13px; color: var(--ink-2); }
+  .tile .val { font-size: 26px; font-weight: 650; margin-top: 2px; }
+  .tile .sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .tile.hero { grid-column: 1 / -1; text-align: left; }
+  .tile.hero .val { font-size: 52px; line-height: 1.15; }
+  .tile.hero .val .cur { font-size: 30px; font-weight: 600; margin-right: 2px; }
+
+  h2 { font-size: 17px; margin: 4px 0 10px; }
+  .cardhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cardhead .sp { flex: 1; }
+  .legend { display: flex; gap: 16px; font-size: 13px; color: var(--ink-2); }
+  .legend .k { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  #chartwrap { position: relative; }
+  #charttip {
+    position: absolute; pointer-events: none; display: none; z-index: 3;
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.13); padding: 8px 12px; font-size: 13px; min-width: 150px;
+  }
+  #charttip .t { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  #charttip .row { display: flex; align-items: center; gap: 8px; }
+  #charttip .key { width: 10px; height: 3px; border-radius: 2px; }
+  #charttip .v { font-weight: 650; font-variant-numeric: tabular-nums; margin-left: auto; }
+  #charttip .n { color: var(--ink-2); }
+  details.dtable { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+  details.dtable table { margin-top: 8px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); }
+  th { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.subrow { cursor: pointer; }
+  tr.subrow:hover td { background: color-mix(in srgb, var(--series-sub) 5%, transparent); }
+  tr.detail td { background: color-mix(in srgb, var(--muted) 6%, transparent); color: var(--ink-2); font-size: 13px; }
+  .mname { font-weight: 600; }
+  .badge {
+    display: inline-block; font-size: 12px; border-radius: 999px;
+    padding: 1px 9px; margin-left: 8px; font-weight: 600; vertical-align: 1px;
+  }
+  .badge.crit { color: var(--crit); border: 1px solid color-mix(in srgb, var(--crit) 45%, transparent); }
+  .badge.warn { color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); }
+  .badge.off  { color: var(--muted); border: 1px solid var(--ring); }
+  .conf { color: var(--muted); font-size: 12px; margin-left: 6px; }
+  .foot { font-size: 13px; color: var(--muted); }
+  .foot ul { margin: 6px 0 0; padding-left: 18px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <span class="logo">漏钱侦探<small>Leakhound</small></span>
+    <span class="privacy"><b>●</b> 零上传 · 本页无任何网络请求 · 断网也能用</span>
+  </header>
+  <p class="tagline">把银行 / 微信 / 支付宝导出的账单拖进来，揪出所有悄悄扣你钱的订阅：
+  忘了取消的会员、偷偷涨价的服务、僵尸扣款。一切都在你自己的浏览器里完成。</p>
+
+  <div class="card" id="drop">
+    <div class="big">把账单 CSV 拖到这里，或点击选择文件</div>
+    <p>支持：银行/信用卡流水 CSV · 微信支付账单 · 支付宝交易明细（自动识别 GBK 编码与表头）· 可同时导入多个文件</p>
+    <div class="btnrow"><button id="demo" class="primary" type="button">先用示例数据试试 →</button></div>
+    <input type="file" id="file" accept=".csv,.txt" multiple class="hidden">
+  </div>
+
+  <div id="files"></div>
+
+  <section id="results" class="hidden">
+    <div id="tiles"></div>
+
+    <div class="card">
+      <div class="cardhead">
+        <h2>每月支出 · 订阅在其中占多少</h2><span class="sp"></span>
+        <div class="legend">
+          <span class="k"><span class="sw" style="background:var(--series-sub)"></span>订阅扣款</span>
+          <span class="k"><span class="sw" style="background:var(--series-other)"></span>其他支出</span>
+        </div>
+      </div>
+      <div id="chartwrap"><div id="chart"></div><div id="charttip"></div></div>
+      <details class="dtable"><summary>查看月度数据表</summary><div id="chartdata"></div></details>
+    </div>
+
+    <div class="card">
+      <div class="cardhead">
+        <h2>检出的周期性扣款</h2><span class="sp"></span>
+        <button id="export" type="button">导出清单 CSV</button>
+      </div>
+      <div id="subs"></div>
+    </div>
+
+    <div class="card foot" id="method">
+      <b>它是怎么判断的？</b>
+      <ul>
+        <li>按商家归并交易，寻找周付 / 月付 / 季付 / 年付节奏（允许偶尔漏扣一期）。</li>
+        <li>金额基本固定 → 订阅；金额有浮动但节奏稳定（如水电费）→ 标「金额浮动」。</li>
+        <li>同一订阅前后金额抬升 ≥ 4% → 标「涨价」；超过约 1.7 个周期没再扣款 → 标「已停止」。</li>
+        <li>收入、退款、失败与「不计收支」的交易已自动排除。</li>
+      </ul>
+      <p style="margin:8px 0 0">局限：识别基于规律而非合同，请以商家实际扣款为准；跨文件的重复流水不会自动去重。
+      隐私：本页面是一个单独的 HTML 文件，没有服务器、没有统计脚本、没有任何网络请求 —— 可以先断网再使用。</p>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+/* 漏钱侦探 · Leakhound — 单文件、零依赖、零上传的订阅扣款侦测器 */
+
+const $ = s => document.querySelector(s);
+const state = { files: [] };
+
+/* ---------------- CSV 解析 ---------------- */
+
+function decodeSmart(buf) {
+  const utf8 = new TextDecoder("utf-8").decode(buf);
+  const bad = (utf8.match(/�/g) || []).length;
+  if (bad === 0) return { text: utf8, enc: "UTF-8" };
+  try {
+    const gbk = new TextDecoder("gbk").decode(buf);
+    const bad2 = (gbk.match(/�/g) || []).length;
+    if (bad2 < bad) return { text: gbk, enc: "GBK" };
+  } catch (e) {}
+  return { text: utf8, enc: "UTF-8" };
+}
+
+function sniffDelim(text) {
+  const head = text.slice(0, 4000);
+  const counts = [",", "\t", ";"].map(d => [d, (head.match(new RegExp("\\" + d, "g")) || []).length]);
+  counts.sort((a, b) => b[1] - a[1]);
+  return counts[0][1] > 0 ? counts[0][0] : ",";
+}
+
+function parseCSV(text, delim) {
+  const rows = []; let row = [], field = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else q = false; }
+      else field += c;
+    } else if (c === '"') q = true;
+    else if (c === delim) { row.push(field); field = ""; }
+    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+    else if (c === "\r") {}
+    else field += c;
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ""));
+}
+
+/* ---------------- 字段识别 ---------------- */
+
+const ROLE_RX = {
+  date:   /交易时间|交易创建时间|记账日期|交易日期|入账日期|日期|时间|date|time|posted/i,
+  desc:   /交易对方|商户名称|对方|商品说明|商品|交易描述|摘要|描述|附言|用途|desc|merchant|payee|narrat|memo|details?|reference/i,
+  amount: /^金额|金额\s*[(（]?元|交易金额|发生额|amount|money|^值$/i,
+  dir:    /收\/支|收支|交易方向|方向|借贷|dr\/cr|type/i,
+  status: /当前状态|交易状态|^状态$|status/i,
+};
+
+function findHeader(rows) {
+  for (let i = 0; i < Math.min(rows.length, 40); i++) {
+    const r = rows[i].map(c => c.trim());
+    if (r.filter(c => c).length < 3) continue;
+    const hasDate = r.some(c => ROLE_RX.date.test(c));
+    const hasAmt = r.some(c => ROLE_RX.amount.test(c) || /金额/.test(c));
+    if (hasDate && hasAmt) return i;
+  }
+  return -1;
+}
+
+function guessMap(headers, data) {
+  const map = { date: -1, desc: -1, amount: -1, dir: -1, status: -1 };
+  headers.forEach((h, i) => {
+    const t = h.trim();
+    for (const role of ["date", "desc", "amount", "dir", "status"]) {
+      if (map[role] === -1 && ROLE_RX[role].test(t)) { map[role] = i; return; }
+    }
+  });
+  // 名字猜不到的，用数据内容投票
+  const sample = data.slice(0, 30);
+  const score = i => {
+    let d = 0, a = 0, len = 0;
+    for (const r of sample) {
+      const c = (r[i] || "").trim();
+      if (parseDateParts(c)) d++;
+      if (parseAmount(c) !== null && !parseDateParts(c)) a++;
+      len += /[^\d.\-¥￥$,]/.test(c) ? c.length : 0;
+    }
+    return { d: d / (sample.length || 1), a: a / (sample.length || 1), len };
+  };
+  const scores = headers.map((_, i) => score(i));
+  if (map.date === -1) map.date = best(scores, s => s.d, 0.6);
+  if (map.amount === -1) map.amount = best(scores, s => (s.d > 0.5 ? 0 : s.a), 0.6, map.date);
+  if (map.desc === -1) map.desc = best(scores, s => s.len, 1, map.date, map.amount);
+  return map;
+}
+
+function best(scores, f, min, ...exclude) {
+  let bi = -1, bv = -Infinity;
+  scores.forEach((s, i) => {
+    if (exclude.includes(i)) return;
+    const v = f(s);
+    if (v > bv) { bv = v; bi = i; }
+  });
+  return bv >= min ? bi : -1;
+}
+
+/* ---------------- 值解析 ---------------- */
+
+function parseDateParts(s) {
+  if (!s) return null;
+  s = s.trim();
+  let m = s.match(/^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/);
+  if (m) return { y: +m[1], a: +m[2], b: +m[3], ymd: true };
+  m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+  if (m) return { y: +m[3], a: +m[1], b: +m[2], ymd: false };
+  m = s.match(/^(20\d{2})(\d{2})(\d{2})$/);
+  if (m) return { y: +m[1], a: +m[2], b: +m[3], ymd: true };
+  return null;
+}
+
+function makeDate(p, dmy) {
+  let mo, d;
+  if (p.ymd) { mo = p.a; d = p.b; }
+  else if (dmy) { d = p.a; mo = p.b; }
+  else { mo = p.a; d = p.b; }
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return new Date(p.y, mo - 1, d);
+}
+
+function parseAmount(s) {
+  if (s === undefined || s === null) return null;
+  s = String(s).trim();
+  if (!s) return null;
+  let neg = false;
+  if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+  s = s.replace(/[¥￥$€£]|RM|元|\s|,/g, "");
+  if (!/^[+-]?\d+(\.\d+)?$/.test(s)) return null;
+  const v = parseFloat(s);
+  return neg ? -v : v;
+}
+
+function detectCurrency(strings) {
+  const tally = {};
+  for (const s of strings) {
+    const m = String(s).match(/[¥￥$€£]|RM/);
+    if (m) tally[m[0] === "￥" ? "¥" : m[0]] = (tally[m[0] === "￥" ? "¥" : m[0]] || 0) + 1;
+  }
+  const bestSym = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+  return bestSym ? (bestSym[0] === "RM" ? "RM " : bestSym[0]) : "¥";
+}
+
+/* ---------------- 文件 → 交易 ---------------- */
+
+async function ingestFile(file) {
+  const buf = await file.arrayBuffer();
+  const { text, enc } = decodeSmart(buf);
+  ingestText(file.name, text, enc);
+}
+
+function ingestText(name, text, enc) {
+  const delim = sniffDelim(text);
+  const rows = parseCSV(text, delim);
+  const hi = findHeader(rows);
+  const f = { name, enc, rows, headerIdx: hi, signMode: "auto", error: null };
+  if (hi === -1) {
+    f.error = "找不到表头行（需要包含日期和金额两列）。";
+    f.headers = rows[0] || []; f.map = { date: -1, desc: -1, amount: -1, dir: -1, status: -1 };
+  } else {
+    f.headers = rows[hi].map(c => c.trim());
+    f.map = guessMap(f.headers, rows.slice(hi + 1));
+  }
+  state.files.push(f);
+  rebuild();
+}
+
+function extractTxns(f) {
+  f.skipped = 0; f.excluded = 0;
+  if (f.headerIdx === -1 || f.map.date === -1 || f.map.amount === -1) { f.txns = []; return; }
+  const data = f.rows.slice(f.headerIdx + 1);
+  // 日月序投票：出现过 >12 的位置决定 DMY / MDY
+  let dmy = true;
+  for (const r of data) {
+    const p = parseDateParts((r[f.map.date] || "").trim());
+    if (p && !p.ymd) { if (p.a > 12) { dmy = true; break; } if (p.b > 12) { dmy = false; break; } }
+  }
+  const raw = [];
+  for (const r of data) {
+    const p = parseDateParts((r[f.map.date] || "").trim());
+    const amt = parseAmount(r[f.map.amount]);
+    if (!p || amt === null) { f.skipped++; continue; }
+    const date = makeDate(p, dmy);
+    if (!date) { f.skipped++; continue; }
+    const status = f.map.status !== -1 ? (r[f.map.status] || "") : "";
+    if (/退款|失败|关闭|撤销|冲正/.test(status)) { f.excluded++; continue; }
+    const dir = f.map.dir !== -1 ? (r[f.map.dir] || "").trim() : "";
+    raw.push({ date, amt, dir, desc: (f.map.desc !== -1 ? r[f.map.desc] : "") || "(无描述)" });
+  }
+  f.currency = detectCurrency(data.map(r => r[f.map.amount]));
+  // 判定支出方向
+  const hasDir = raw.some(t => /支出|收入|支|收|借|贷/.test(t.dir));
+  const negs = raw.filter(t => t.amt < 0).length;
+  let mode = f.signMode;
+  if (mode === "auto") {
+    if (hasDir) mode = "dircol";
+    else if (negs > 0 && negs >= raw.length - negs) mode = "neg";
+    else if (negs > 0) mode = "neg";
+    else mode = "allpos";
+  }
+  f.resolvedMode = mode;
+  const txns = [];
+  for (const t of raw) {
+    let expense = null;
+    if (mode === "dircol") {
+      if (/支出|^支$|^借$/.test(t.dir)) expense = Math.abs(t.amt);
+      else if (/收入|^收$|^贷$/.test(t.dir)) { f.excluded++; continue; }
+      else { f.excluded++; continue; }             // 不计收支 / 其他
+    } else if (mode === "neg") {
+      if (t.amt < 0) expense = -t.amt; else { f.excluded++; continue; }
+    } else if (mode === "pos") {
+      if (t.amt > 0) expense = t.amt; else { f.excluded++; continue; }
+    } else { expense = Math.abs(t.amt); }
+    txns.push({ date: t.date, amount: expense, desc: t.desc.trim() });
+  }
+  f.txns = txns;
+}
+
+/* ---------------- 商家归并 & 周期检测 ---------------- */
+
+function merchantKey(desc) {
+  let s = desc.toLowerCase();
+  s = s.replace(/^(财付通|支付宝|微信支付|美团支付|抖音支付)[-*·—\s]*/, "");
+  s = s.replace(/\d{5,}/g, " ").replace(/[0-9a-f]{10,}/gi, " ");
+  s = s.replace(/[-_*#·.,:：、()（）\[\]【】/\\|"'“”]+/g, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  return s.slice(0, 40) || desc.slice(0, 40);
+}
+
+const CADENCES = [
+  { id: "weekly",    name: "周付", days: 7,   tol: 1.5, perMonth: 4.33 },
+  { id: "monthly",   name: "月付", days: 30.4, tol: 4.5, perMonth: 1 },
+  { id: "quarterly", name: "季付", days: 91,  tol: 9,   perMonth: 1 / 3 },
+  { id: "yearly",    name: "年付", days: 365, tol: 22,  perMonth: 1 / 12 },
+];
+
+function median(xs) {
+  const a = [...xs].sort((x, y) => x - y);
+  const n = a.length;
+  return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2;
+}
+
+function detectSub(key, txns, dataEnd) {
+  // 同日多笔合并成一次扣款事件
+  const byDay = new Map();
+  for (const t of txns) {
+    const k = t.date.toISOString().slice(0, 10);
+    byDay.set(k, (byDay.get(k) || 0) + t.amount);
+  }
+  const events = [...byDay.entries()]
+    .map(([d, amt]) => ({ date: new Date(d), amt }))
+    .sort((a, b) => a.date - b.date);
+  if (events.length < 2) return null;
+
+  const gaps = [];
+  for (let i = 1; i < events.length; i++)
+    gaps.push((events[i].date - events[i - 1].date) / 86400000);
+
+  let bestCad = null, bestScore = 0;
+  for (const cad of CADENCES) {
+    let matched = 0;
+    for (const g of gaps) {
+      const r = Math.round(g / cad.days);
+      if (r >= 1 && r <= 3 && Math.abs(g - r * cad.days) <= cad.tol * r) matched++;
+    }
+    const score = matched / gaps.length;
+    if (score > bestScore) { bestScore = score; bestCad = cad; }
+  }
+  const need = bestCad && bestCad.id === "yearly" ? 1 : 2;
+  if (!bestCad || bestScore < 0.7 || gaps.length < need) return null;
+  if (events.length < (bestCad.id === "yearly" ? 2 : 3)) return null;
+
+  const amts = events.map(e => e.amt);
+  const med = median(amts);
+  const mad = median(amts.map(a => Math.abs(a - med))) / (med || 1);
+  if (bestCad.id === "weekly" && mad > 0.05) return null;   // 每周且金额乱跳的是消费习惯，不是订阅
+  if (mad > 0.6) return null;
+
+  // 涨价：金额分段，末段显著高于首段
+  let hike = null;
+  if (mad < 0.2) {
+    const runs = [];
+    for (const e of events) {
+      const last = runs[runs.length - 1];
+      if (last && Math.abs(e.amt - last.amt) / last.amt < 0.02) last.n++;
+      else runs.push({ amt: e.amt, n: 1 });
+    }
+    if (runs.length > 1 && runs[runs.length - 1].amt > runs[0].amt * 1.04)
+      hike = { from: runs[0].amt, to: runs[runs.length - 1].amt };
+  }
+
+  const last = events[events.length - 1];
+  const active = (dataEnd - last.date) / 86400000 <= bestCad.days * 1.7 + bestCad.tol;
+  const current = hike ? hike.to : med;
+  return {
+    key, events, cadence: bestCad,
+    median: med, mad, current, hike,
+    monthly: current * bestCad.perMonth,
+    total: amts.reduce((a, b) => a + b, 0),
+    first: events[0].date, last: last.date, active,
+    confidence: bestScore >= 0.9 && mad < 0.1 ? "高" : "中",
+  };
+}
+
+function analyze(txns) {
+  if (!txns.length) return null;
+  const dataEnd = new Date(Math.max(...txns.map(t => t.date)));
+  const groups = new Map();
+  for (const t of txns) {
+    const k = merchantKey(t.desc);
+    if (!groups.has(k)) groups.set(k, { txns: [], names: new Map() });
+    const g = groups.get(k);
+    g.txns.push(t);
+    g.names.set(t.desc, (g.names.get(t.desc) || 0) + 1);
+  }
+  const subs = [];
+  for (const [key, g] of groups) {
+    const sub = detectSub(key, g.txns, dataEnd);
+    if (sub) {
+      sub.name = [...g.names.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      subs.push(sub);
+    }
+  }
+  subs.sort((a, b) => (b.active - a.active) || (b.monthly - a.monthly));
+
+  const subKeys = new Set(subs.map(s => s.key));
+  const months = new Map();
+  const ym = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const minD = new Date(Math.min(...txns.map(t => t.date)));
+  for (let d = new Date(minD.getFullYear(), minD.getMonth(), 1); d <= dataEnd; d.setMonth(d.getMonth() + 1))
+    months.set(ym(d), { ym: ym(d), sub: 0, other: 0 });
+  for (const t of txns) {
+    const m = months.get(ym(t.date));
+    if (!m) continue;
+    if (subKeys.has(merchantKey(t.desc))) m.sub += t.amount; else m.other += t.amount;
+  }
+  const burn = subs.filter(s => s.active).reduce((a, s) => a + s.monthly, 0);
+  return { subs, months: [...months.values()], burn, dataEnd, minD, n: txns.length };
+}
+
+/* ---------------- 渲染 ---------------- */
+
+function fmtMoney(v, decimals) {
+  const cur = state.currency || "¥";
+  const d = decimals === undefined ? (Math.abs(v) % 1 > 0.004 ? 2 : 0) : decimals;
+  return cur + v.toLocaleString("zh-CN", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function renderFiles() {
+  const box = $("#files");
+  box.textContent = "";
+  state.files.forEach((f, idx) => {
+    const card = el("div", "card filecard");
+    const head = el("div", "fhead");
+    head.append(el("span", "fname", f.name));
+    head.append(el("span", "fmeta",
+      `${f.enc} · 识别 ${f.txns ? f.txns.length : 0} 笔支出` +
+      (f.excluded ? ` · 排除收入/退款等 ${f.excluded} 笔` : "") +
+      (f.skipped ? ` · 跳过无法解析 ${f.skipped} 行` : "")));
+    const rm = el("button", "rm", "移除 ✕");
+    rm.onclick = () => { state.files.splice(idx, 1); rebuild(); };
+    head.append(rm);
+    card.append(head);
+
+    if (f.error) card.append(el("div", "err", f.error));
+    if (f.headers && f.headers.length) {
+      const maps = el("div", "fmaps");
+      const roles = [["date", "日期列"], ["desc", "商家列"], ["amount", "金额列"], ["dir", "收/支列"]];
+      for (const [role, label] of roles) {
+        const lab = el("label", "", label);
+        const sel = document.createElement("select");
+        const none = el("option", "", "（无）"); none.value = "-1"; sel.append(none);
+        f.headers.forEach((h, i) => {
+          const o = el("option", "", h || `第${i + 1}列`); o.value = String(i); sel.append(o);
+        });
+        sel.value = String(f.map[role]);
+        sel.onchange = () => { f.map[role] = +sel.value; rebuild(); };
+        lab.append(sel); maps.append(lab);
+      }
+      const lab = el("label", "", "支出判定");
+      const sel = document.createElement("select");
+      [["auto", "自动"], ["dircol", "按收/支列"], ["neg", "负数是支出"], ["pos", "正数是支出"], ["allpos", "全部视为支出"]]
+        .forEach(([v, t]) => { const o = el("option", "", t); o.value = v; sel.append(o); });
+      sel.value = f.signMode;
+      sel.onchange = () => { f.signMode = sel.value; rebuild(); };
+      lab.append(sel); maps.append(lab);
+      card.append(maps);
+    }
+    box.append(card);
+  });
+}
+
+function renderTiles(m) {
+  const box = $("#tiles");
+  box.textContent = "";
+  const hero = el("div", "tile hero");
+  hero.append(el("div", "lbl", "照这个漏法，一年流走"));
+  const v = el("div", "val");
+  const cur = el("span", "cur", state.currency || "¥");
+  v.append(cur, document.createTextNode((m.burn * 12).toLocaleString("zh-CN", { maximumFractionDigits: 0 })));
+  hero.append(v);
+  hero.append(el("div", "sub", `按当前 ${m.subs.filter(s => s.active).length} 项在扣订阅的费率年化估算`));
+  box.append(hero);
+
+  const tiles = [
+    ["每月订阅支出", fmtMoney(m.burn, 2), "仅计入仍在扣款的项目"],
+    ["检出周期性扣款", `${m.subs.length} 项`,
+      `在扣 ${m.subs.filter(s => s.active).length} · 已停止 ${m.subs.filter(s => !s.active).length}`],
+    ["涨价警报", `${m.subs.filter(s => s.hike).length} 处`,
+      m.subs.filter(s => s.hike).length ? "详见下表红色标记" : "暂未发现悄悄涨价"],
+    ["数据范围", `${m.n} 笔`, `${fmtDate(m.minD)} ~ ${fmtDate(m.dataEnd)}`],
+  ];
+  for (const [lbl, val, sub] of tiles) {
+    const t = el("div", "tile");
+    t.append(el("div", "lbl", lbl), el("div", "val", val), el("div", "sub", sub));
+    box.append(t);
+  }
+}
+
+function niceCeil(v) {
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const k of [1, 2, 2.5, 5, 10]) if (v <= k * p) return k * p;
+  return 10 * p;
+}
+
+function renderChart(m) {
+  const wrap = $("#chart");
+  wrap.textContent = "";
+  const months = m.months.slice(-24);
+  const W = Math.max(wrap.clientWidth || 900, 320), H = 250;
+  const padL = 54, padR = 14, padT = 20, padB = 26;
+  const yMax = niceCeil(Math.max(...months.map(x => x.sub + x.other), 1));
+  const iw = (W - padL - padR) / months.length;
+  const bw = Math.min(24, Math.max(6, iw * 0.62));
+  const y = v => padT + (1 - v / yMax) * (H - padT - padB);
+  const css = getComputedStyle(document.documentElement);
+  const C = n => css.getPropertyValue(n).trim();
+
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const add = (parent, tag, attrs) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent.append(e); return e;
+  };
+  // 网格与刻度
+  for (let i = 0; i <= 4; i++) {
+    const v = (yMax / 4) * i, yy = y(v);
+    if (i > 0) add(svg, "line", { x1: padL, x2: W - padR, y1: yy, y2: yy, stroke: C("--grid"), "stroke-width": 1 });
+    const t = add(svg, "text", { x: padL - 8, y: yy + 4, "text-anchor": "end", fill: C("--muted"),
+      "font-size": 11, style: "font-variant-numeric:tabular-nums" });
+    t.textContent = v >= 10000 ? (v / 10000) + "万" : v.toLocaleString("zh-CN");
+  }
+  add(svg, "line", { x1: padL, x2: W - padR, y1: y(0), y2: y(0), stroke: C("--axis"), "stroke-width": 1 });
+
+  const roundedTop = (x, yTop, w, h, r) => {
+    if (h <= 0) return "";
+    r = Math.min(r, h, w / 2);
+    return `M${x},${yTop + h} L${x},${yTop + r} Q${x},${yTop} ${x + r},${yTop} L${x + w - r},${yTop} Q${x + w},${yTop} ${x + w},${yTop + r} L${x + w},${yTop + h} Z`;
+  };
+
+  const centers = [];
+  months.forEach((mo, i) => {
+    const xc = padL + iw * i + iw / 2, x0 = xc - bw / 2;
+    centers.push(xc);
+    const hSub = (mo.sub / yMax) * (H - padT - padB);
+    const hOth = (mo.other / yMax) * (H - padT - padB);
+    const gap = hSub > 0 && hOth > 0 ? 2 : 0;
+    if (hSub > 0) {
+      if (hOth > 0) add(svg, "rect", { x: x0, y: y(mo.sub), width: bw, height: hSub, fill: C("--series-sub") });
+      else add(svg, "path", { d: roundedTop(x0, y(mo.sub), bw, hSub, 4), fill: C("--series-sub") });
+    }
+    if (hOth > 0)
+      add(svg, "path", { d: roundedTop(x0, y(mo.sub + mo.other) - gap, bw, hOth - (hSub > 0 ? 0 : 0), 4), fill: C("--series-other") });
+    // 月份刻度：最多 12 个标签
+    const k = Math.ceil(months.length / 12);
+    if (i % k === 0 || i === months.length - 1) {
+      const t = add(svg, "text", { x: xc, y: H - 8, "text-anchor": "middle", fill: C("--muted"), "font-size": 11 });
+      t.textContent = mo.ym.slice(2).replace("-", "/");
+    }
+  });
+  // 端点直接标注：最后一个月的总额
+  const lastMo = months[months.length - 1];
+  const lt = add(svg, "text", { x: centers[centers.length - 1], y: y(lastMo.sub + lastMo.other) - 7,
+    "text-anchor": "middle", fill: C("--ink-2"), "font-size": 12, "font-weight": 600 });
+  lt.textContent = fmtMoney(lastMo.sub + lastMo.other, 0);
+
+  // 悬停层：整列命中 + 十字线 + 提示框
+  const cross = add(svg, "line", { x1: 0, x2: 0, y1: padT, y2: y(0), stroke: C("--axis"), "stroke-width": 1, opacity: 0 });
+  const tip = $("#charttip");
+  months.forEach((mo, i) => {
+    const hit = add(svg, "rect", { x: padL + iw * i, y: padT, width: iw, height: H - padT - padB, fill: "transparent" });
+    hit.addEventListener("pointerenter", () => {
+      cross.setAttribute("x1", centers[i]); cross.setAttribute("x2", centers[i]);
+      cross.setAttribute("opacity", "1");
+      tip.textContent = "";
+      tip.append(el("div", "t", mo.ym));
+      for (const [name, val, color] of [["订阅扣款", mo.sub, C("--series-sub")], ["其他支出", mo.other, C("--series-other")]]) {
+        const row = el("div", "row");
+        const key = el("span", "key"); key.style.background = color;
+        row.append(key, el("span", "n", name), el("span", "v", fmtMoney(val, 2)));
+        tip.append(row);
+      }
+      const row = el("div", "row");
+      row.append(el("span", "key"), el("span", "n", "总计"), el("span", "v", fmtMoney(mo.sub + mo.other, 2)));
+      tip.append(row);
+      tip.style.display = "block";
+      const wrapW = $("#chartwrap").clientWidth;
+      const px = (centers[i] / W) * wrapW;
+      tip.style.left = Math.min(Math.max(px + 14, 0), wrapW - 180) + "px";
+      tip.style.top = "24px";
+    });
+  });
+  svg.addEventListener("pointerleave", () => { cross.setAttribute("opacity", "0"); tip.style.display = "none"; });
+  wrap.append(svg);
+
+  // 无障碍数据表
+  const dbox = $("#chartdata");
+  dbox.textContent = "";
+  const tb = el("table");
+  const hr = el("tr");
+  ["月份", "订阅扣款", "其他支出", "总计"].forEach((h, i) => hr.append(el(i ? "th" : "th", i ? "num" : "", h)));
+  tb.append(hr);
+  for (const mo of months) {
+    const tr = el("tr");
+    tr.append(el("td", "", mo.ym));
+    tr.append(el("td", "num", fmtMoney(mo.sub, 2)));
+    tr.append(el("td", "num", fmtMoney(mo.other, 2)));
+    tr.append(el("td", "num", fmtMoney(mo.sub + mo.other, 2)));
+    tb.append(tr);
+  }
+  dbox.append(tb);
+}
+
+function renderSubs(m) {
+  const box = $("#subs");
+  box.textContent = "";
+  if (!m.subs.length) {
+    box.append(el("p", "foot", "没有发现明显的周期性扣款。可以多导入几个月的账单再试。"));
+    return;
+  }
+  const tb = el("table");
+  const hr = el("tr");
+  [["商家", ""], ["周期", ""], ["每期", "num"], ["折算每月", "num"],
+   ["最近扣款", ""], ["累计已付", "num"], ["状态", ""]].forEach(([h, c]) => hr.append(el("th", c, h)));
+  tb.append(hr);
+  m.subs.forEach(s => {
+    const tr = el("tr", "subrow");
+    const name = el("td");
+    const nm = el("span", "mname", s.name.length > 26 ? s.name.slice(0, 25) + "…" : s.name);
+    name.append(nm);
+    if (s.hike) {
+      const pct = Math.round((s.hike.to / s.hike.from - 1) * 100);
+      name.append(el("span", "badge crit", `▲ 涨价 ${pct}%（${fmtMoney(s.hike.from)} → ${fmtMoney(s.hike.to)}）`));
+    }
+    if (s.mad >= 0.08) name.append(el("span", "badge warn", "≈ 金额浮动"));
+    name.append(el("span", "conf", `置信${s.confidence}`));
+    tr.append(name);
+    tr.append(el("td", "", s.cadence.name));
+    tr.append(el("td", "num", fmtMoney(s.current, 2) + (s.mad >= 0.08 ? "*" : "")));
+    tr.append(el("td", "num", s.active ? fmtMoney(s.monthly, 2) : "—"));
+    tr.append(el("td", "", fmtDate(s.last)));
+    tr.append(el("td", "num", fmtMoney(s.total, 2)));
+    const st = el("td");
+    st.append(s.active ? el("span", "", "在扣") : el("span", "badge off", "⏸ 已停止"));
+    tr.append(st);
+    tb.append(tr);
+
+    const dtr = el("tr", "detail hidden");
+    const dtd = el("td"); dtd.colSpan = 7;
+    dtd.textContent = "扣款记录：" + s.events.slice(-14).map(e => `${fmtDate(e.date)} ${fmtMoney(e.amt, 2)}`).join(" · ")
+      + (s.events.length > 14 ? ` ·（共 ${s.events.length} 次）` : "");
+    dtr.append(dtd);
+    tb.append(dtr);
+    tr.onclick = () => dtr.classList.toggle("hidden");
+  });
+  box.append(tb);
+  if (m.subs.some(s => s.mad >= 0.08))
+    box.append(el("p", "foot", "* 金额浮动的项目按各期中位数计。"));
+}
+
+function exportCSV(m) {
+  const rows = [["商家", "周期", "每期金额", "折算每月", "首次扣款", "最近扣款", "累计已付", "状态", "涨价"]];
+  for (const s of m.subs)
+    rows.push([s.name, s.cadence.name, s.current.toFixed(2), s.monthly.toFixed(2),
+      fmtDate(s.first), fmtDate(s.last), s.total.toFixed(2),
+      s.active ? "在扣" : "已停止", s.hike ? `${s.hike.from.toFixed(2)}->${s.hike.to.toFixed(2)}` : ""]);
+  const csv = "﻿" + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = "漏钱侦探-订阅清单.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------------- 主流程 ---------------- */
+
+let model = null;
+
+function rebuild() {
+  for (const f of state.files) extractTxns(f);
+  renderFiles();
+  const txns = state.files.flatMap(f => f.txns || []);
+  state.currency = state.files.length ? state.files[0].currency : "¥";
+  model = analyze(txns);
+  const res = $("#results");
+  if (!model) { res.classList.add("hidden"); return; }
+  res.classList.remove("hidden");
+  renderTiles(model);
+  renderChart(model);
+  renderSubs(model);
+}
+
+/* ---------------- 示例数据（走完整 CSV 解析管线） ---------------- */
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function demoCSV() {
+  const rand = mulberry32(20260702);
+  const rows = [];
+  const push = (d, party, dir, amt) =>
+    rows.push([`${fmtDate(d)} ${String(Math.floor(rand() * 24)).padStart(2, "0")}:11:00`,
+      "商户消费", party, "/", dir, `¥${amt.toFixed(2)}`, "零钱", "支付成功", String(100000 + rows.length)]);
+  const end = new Date(2026, 5, 28), start = new Date(2025, 0, 1);
+  const addMonthly = (party, day, amt, fromM, toM, amtFn) => {
+    for (let d = new Date(2025, 0, day), i = 0; d <= end; d.setMonth(d.getMonth() + 1), i++) {
+      if (i < fromM || (toM !== null && i > toM)) continue;
+      push(new Date(d), party, "支出", amtFn ? amtFn(i) : amt);
+    }
+  };
+  addMonthly("爱奇艺自动续费", 3, 0, 0, null, i => (i >= 10 ? 30 : 25));   // 第 10 个月起涨价
+  addMonthly("iCloud 云储存", 8, 21, 0, null);
+  addMonthly("超级健身房月卡", 15, 149, 0, null);
+  addMonthly("Spotify Premium", 21, 15, 0, 12);                            // 一年后停止
+  push(new Date(2025, 2, 12), "云服务器续费", "支出", 399);                 // 年付 ×2
+  push(new Date(2026, 2, 12), "云服务器续费", "支出", 399);
+  const shops = ["瑞幸咖啡", "美团外卖", "永辉超市", "滴滴出行", "京东商城", "沙县小吃",
+    "中石化加油", "屈臣氏", "海底捞", "电影院", "水果店", "拼多多"];
+  for (let i = 0; i < 300; i++) {
+    const d = new Date(start.getTime() + rand() * (end - start));
+    const shop = shops[Math.floor(rand() * shops.length)];
+    const amt = shop === "瑞幸咖啡" ? 9 + rand() * 23 : 5 + rand() * 300;
+    push(d, shop, "支出", amt);
+  }
+  for (let m = 0; m < 18; m++) {
+    const d = new Date(2025, m, 10);
+    if (d <= end) push(d, "某某科技有限公司", "收入", 12000);
+  }
+  rows.sort((a, b) => a[0] < b[0] ? -1 : 1);
+  const head = ["交易时间", "交易类型", "交易对方", "商品", "收/支", "金额(元)", "支付方式", "当前状态", "交易单号"];
+  return "微信支付账单明细,,,,,,,,\n导出时间:[2026-07-02],,,,,,,,\n-----------------,,,,,,,,\n"
+    + head.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+}
+
+/* ---------------- 事件 ---------------- */
+
+const drop = $("#drop");
+drop.addEventListener("click", e => { if (e.target.id !== "demo") $("#file").click(); });
+$("#file").addEventListener("change", async e => {
+  for (const f of e.target.files) await ingestFile(f);
+  e.target.value = "";
+});
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("hover"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("hover"));
+drop.addEventListener("drop", async e => {
+  e.preventDefault(); drop.classList.remove("hover");
+  for (const f of e.dataTransfer.files) await ingestFile(f);
+});
+$("#demo").addEventListener("click", e => {
+  e.stopPropagation();
+  ingestText("示例账单（微信支付格式）.csv", demoCSV(), "UTF-8");
+});
+$("#export").addEventListener("click", () => { if (model) exportCSV(model); });
+addEventListener("resize", () => { if (model) renderChart(model); });
+</script>
+</body>
+</html>
