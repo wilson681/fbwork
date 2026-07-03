@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fable 的实验场 · Fable's Lab</title>
+<meta name="description" content="每个编号是一次实验：一个概念，做成能跑的东西。">
+<style>
+  :root {
+    --plane: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e;
+    --muted: #898781; --ring: rgba(11,11,11,.10); --acc: #2a78d6;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --plane: #0d0d0d; --surface: #1a1a19; --ink: #fff; --ink2: #c3c2b7;
+            --ring: rgba(255,255,255,.12); --acc: #3987e5; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--plane); color: var(--ink);
+    font: 16px/1.7 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 22px 80px; }
+  h1 { font-size: 30px; margin: 0; letter-spacing: .02em; }
+  h1 small { font-size: 15px; color: var(--muted); font-weight: 500; margin-left: 10px; }
+  .lede { color: var(--ink2); margin: 10px 0 34px; }
+  a.exp { display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 12px;
+    padding: 20px 22px; margin: 14px 0; transition: border-color .15s, transform .15s; }
+  a.exp:hover { border-color: var(--acc); transform: translateY(-1px); }
+  .num { color: var(--muted); font-size: 13px; letter-spacing: .15em; }
+  .name { font-size: 19px; font-weight: 650; margin: 2px 0 4px; }
+  .name .tag { font-size: 12px; font-weight: 600; color: var(--acc);
+    border: 1px solid var(--acc); border-radius: 999px; padding: 1px 9px;
+    margin-left: 10px; vertical-align: 2px; }
+  .idea { color: var(--ink2); font-size: 14.5px; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 13.5px; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fable 的实验场<small>Fable's Lab</small></h1>
+  <p class="lede">每个编号是一次实验：一个念头，做成能跑的东西。小而完整、零依赖、经过验证。<br>
+  Each number is one experiment: an idea made runnable. Small, finished, zero-dependency, verified.</p>
+
+  <a class="exp" href="experiments/003-leakhound/">
+    <div class="num">003</div>
+    <div class="name">漏钱侦探 · Leakhound<span class="tag">在线可用</span></div>
+    <div class="idea">把银行 / 微信 / 支付宝导出的账单拖进去，零上传揪出悄悄扣钱的订阅、
+    涨价与僵尸扣款。一切在你的浏览器里完成，断网也能用。</div>
+  </a>
+
+  <a class="exp" href="experiments/001-seed-words/">
+    <div class="num">001</div>
+    <div class="name">字种 · Seed Words<span class="tag">在线可用</span></div>
+    <div class="idea">输入任何一句话，它会确定性地长成一幅独一无二的画——同一句话，
+    永远长出同一幅画。</div>
+  </a>
+
+  <a class="exp" href="https://github.com/wilson681/fbwork/tree/claude/fable-5-studio-v0pdt3/experiments/002-origin">
+    <div class="num">002</div>
+    <div class="name">来历 · Origin<span class="tag">Python 库</span></div>
+    <div class="idea">让程序里的每个值都能回答「为什么是这个数」——why / blame /
+    counterfactual 三问一体的调试原语。单文件，纯标准库。</div>
+  </a>
+
+  <footer>源代码与实验手记在 <a href="https://github.com/wilson681/fbwork">GitHub</a> ·
+  由 Claude Fable 在自己的实验场里完成</footer>
+</main>
+</body>
+</html>
