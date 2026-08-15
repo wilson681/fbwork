@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>戒赌自测 · 90 天计划</title>
+<style>
+/* ── 配色：刻意避开赌场色系（红/金/桌绿），用冷静的深蓝灰 ───────────── */
+:root{
+  --bg:#0F1620; --bg2:#16202C; --card:#1B2735; --line:#2A3948;
+  --fg:#E8EEF4; --dim:#8FA3B8; --faint:#5D7286;
+  --accent:#4DB6A5; --accent-dim:#2F6F66; --warn:#C89B5A;
+  --r:14px; --pad:22px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+body{min-height:100dvh;display:flex;flex-direction:column;line-height:1.6}
+
+/* ── 进度条 ───────────────────────────────────────────────────────── */
+#bar{position:fixed;top:0;left:0;right:0;height:3px;background:var(--line);z-index:10}
+#bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .35s cubic-bezier(.4,0,.2,1)}
+
+/* ── 布局 ─────────────────────────────────────────────────────────── */
+main{flex:1;display:flex;flex-direction:column;justify-content:center;
+  max-width:520px;width:100%;margin:0 auto;padding:calc(var(--pad) + 20px) var(--pad) var(--pad)}
+.screen{animation:in .32s cubic-bezier(.2,.8,.3,1) both}
+@keyframes in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+h1{font-size:27px;line-height:1.32;margin:0 0 12px;font-weight:650;letter-spacing:-.01em}
+h2{font-size:21px;line-height:1.4;margin:0 0 10px;font-weight:600}
+p{margin:0 0 14px;color:var(--dim);font-size:15px}
+.lead{color:var(--fg);font-size:16px}
+.tiny{font-size:12.5px;color:var(--faint);line-height:1.55}
+
+/* ── 选项 ─────────────────────────────────────────────────────────── */
+.opts{display:flex;flex-direction:column;gap:9px;margin:22px 0 0}
+button.opt{width:100%;text-align:left;padding:15px 17px;border-radius:var(--r);
+  border:1px solid var(--line);background:var(--card);color:var(--fg);
+  font:inherit;font-size:15.5px;cursor:pointer;transition:.15s;line-height:1.45}
+button.opt:active{transform:scale(.985)}
+@media(hover:hover){button.opt:hover{border-color:var(--accent-dim);background:#1F2C3C}}
+button.opt.sel{border-color:var(--accent);background:#1D3038}
+
+/* ── 数字输入 ─────────────────────────────────────────────────────── */
+.numwrap{display:flex;align-items:baseline;gap:10px;margin:26px 0 6px;
+  border-bottom:2px solid var(--line);padding-bottom:8px}
+.numwrap span{color:var(--faint);font-size:20px}
+input[type=number],input[type=email]{flex:1;min-width:0;background:none;border:none;outline:none;
+  color:var(--fg);font:inherit;font-size:30px;font-weight:600;font-variant-numeric:tabular-nums}
+input[type=email]{font-size:17px;font-weight:400}
+input::placeholder{color:#3C4E5F;font-weight:400}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+
+/* ── 主按钮 ───────────────────────────────────────────────────────── */
+.cta{width:100%;padding:16px;border-radius:var(--r);border:none;background:var(--accent);
+  color:#08120F;font:inherit;font-size:16.5px;font-weight:650;cursor:pointer;
+  margin-top:20px;transition:.15s}
+.cta:active{transform:scale(.985)}
+.cta:disabled{background:var(--line);color:var(--faint);cursor:default;transform:none}
+.ghost{background:none;border:none;color:var(--faint);font:inherit;font-size:14px;
+  padding:14px;width:100%;cursor:pointer;margin-top:4px}
+
+/* ── 卡片 / 诊断 ──────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:18px;margin:14px 0}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+  padding:11px 0;border-bottom:1px solid var(--line)}
+.kv:last-child{border:none;padding-bottom:0}
+.kv b{font-weight:600;font-size:15px;text-align:right}
+.kv span{color:var(--dim);font-size:14px;flex-shrink:0}
+
+.big{font-size:44px;font-weight:700;letter-spacing:-.025em;
+  font-variant-numeric:tabular-nums;line-height:1.15;margin:6px 0}
+.big.warn{color:var(--warn)}
+
+.tag{display:inline-block;padding:5px 12px;border-radius:999px;font-size:13px;
+  background:var(--accent-dim);color:#CFF0E9;font-weight:600;margin-bottom:14px}
+.tag.risk{background:#5B3A2E;color:#F0CBAE}
+
+/* ── 计划步骤 ─────────────────────────────────────────────────────── */
+.step{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border:none}
+.step i{flex-shrink:0;width:26px;height:26px;border-radius:7px;background:var(--accent-dim);
+  color:#CFF0E9;font-style:normal;font-size:12px;font-weight:700;
+  display:grid;place-items:center;margin-top:2px}
+.step div{flex:1}
+.step b{display:block;font-size:15px;font-weight:600;margin-bottom:3px}
+.step p{margin:0;font-size:13.5px;line-height:1.5}
+
+/* ── 付费墙 ───────────────────────────────────────────────────────── */
+.plan{position:relative;border:1.5px solid var(--line);border-radius:var(--r);
+  padding:17px;margin-bottom:10px;cursor:pointer;background:var(--card);transition:.15s}
+.plan.best{border-color:var(--accent)}
+.plan:active{transform:scale(.99)}
+.plan .row{display:flex;justify-content:space-between;align-items:baseline}
+.plan .name{font-weight:600;font-size:16px}
+.plan .price{font-weight:700;font-size:19px;font-variant-numeric:tabular-nums}
+.plan .sub{color:var(--dim);font-size:13px;margin-top:5px}
+.badge{position:absolute;top:-9px;right:14px;background:var(--accent);color:#08120F;
+  font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+
+.help{border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:18px;background:#131C26}
+.help b{display:block;font-size:13.5px;margin-bottom:7px;color:var(--dim)}
+.help a{color:var(--accent);text-decoration:none;font-size:13px}
+
+/* ── 分析动画 ─────────────────────────────────────────────────────── */
+.pulse{width:52px;height:52px;border-radius:50%;border:2.5px solid var(--line);
+  border-top-color:var(--accent);margin:0 auto 26px;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#steps li{list-style:none;padding:9px 0;color:var(--faint);font-size:14.5px;
+  opacity:.3;transition:.4s;display:flex;gap:9px;align-items:center}
+#steps li.on{opacity:1;color:var(--fg)}
+#steps li::before{content:"○";color:var(--faint);font-size:12px}
+#steps li.on::before{content:"●";color:var(--accent)}
+#steps{padding:0;margin:0}
+
+.back{position:fixed;top:14px;left:12px;z-index:11;background:none;border:none;
+  color:var(--faint);font-size:22px;padding:8px 12px;cursor:pointer;line-height:1}
+</style>
+</head>
+<body>
+
+<div id="bar"><i></i></div>
+<button class="back" id="back" style="display:none" aria-label="返回">‹</button>
+<main id="app"></main>
+
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════════════════
+   戒赌 App · Onboarding + 诊断 + 付费墙（需求验证原型）
+   目的不是上线，是拿到三个数字：完成率、付费点击率、真实愿付价格。
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 配置 ──────────────────────────────────────────────────────────── */
+const CONFIG = {
+  // 埋点上报地址。留空 = 只存 localStorage（本地测试用）。
+  // 上线测流量时填 Formspree / 自建接口 / 任何接受 POST JSON 的 URL。
+  ENDPOINT: "",
+
+  // 价格 A/B/C — 随机分配，记录点击。这才是定价的答案来源。
+  PRICES: {
+    A: { year: 148, month: 38,  label: "A" },   // ≈ $20/年
+    B: { year: 288, month: 68,  label: "B" },
+    C: { year: 398, month: 98,  label: "C" }
+  },
+
+  TRIAL_DAYS: 3
+};
+
+/* ── 题目 ──────────────────────────────────────────────────────────── */
+const Q = [
+  { id:"last", sec:"现状", t:"你最近一次下注是什么时候？",
+    o:["今天","这周内","这个月内","一个月以上"] },
+
+  { id:"kind", sec:"现状", t:"主要是哪一类？",
+    o:["线上博彩平台","体育投注","百家乐 / 牌桌","彩票 / 刮刮乐","加密货币 / 高杠杆炒币","线下场所"] },
+
+  { id:"freq", sec:"现状", t:"一周大概几次？",
+    o:["几乎每天","一周 3–5 次","一周 1–2 次","一个月几次"], v:[6,4,1.5,0.5] },
+
+  { id:"amt", sec:"现状", t:"单次大概投入多少？", type:"num",
+    unit:"元", hint:"填你自己心里那个数就行，没人会看到。" },
+
+  { id:"dur", sec:"损失", t:"这样持续多久了？",
+    o:["不到半年","半年到一年","一到三年","三到五年","五年以上"], v:[0.4,0.8,2,4,7] },
+
+  { id:"total", sec:"损失", t:"到今天为止，你估计总共输了多少？", type:"num",
+    unit:"元", hint:"往多了算。人对自己的损失，估算永远偏低。" },
+
+  { id:"borrow", sec:"损失", t:"有没有借钱来赌过？",
+    o:["没有","刷过信用卡","借过网贷","跟朋友或家人借过","以上都有过"], risk:[0,1,2,2,3] },
+
+  { id:"trigger", sec:"触发", t:"通常什么时候最想赌？",
+    o:["深夜，睡不着的时候","压力大或者心情很差的时候","刚输完，想赢回来","发了工资 / 手里有钱的时候","无聊，没事干的时候","看到群消息或者广告"],
+    type_:["冲动","逃避","追损","冲动","冲动","社交"] },
+
+  { id:"day", sec:"触发", t:"一周里哪天最危险？",
+    o:["周末","周五晚上","发薪日前后","没规律，随时"] },
+
+  { id:"before", sec:"触发", t:"真正下注前的十分钟，你一般在做什么？",
+    o:["一个人刷手机","刚跟人吵完架 / 受了气","喝了酒","在看比赛 / 赔率","说不清，回过神已经在赌了"] },
+
+  { id:"family", sec:"影响", t:"家里人知道吗？",
+    o:["完全不知道","知道一点，不知道实际数额","知道，但已经不管了","知道，一直在管"], risk:[2,2,1,0] },
+
+  { id:"work", sec:"影响", t:"影响到工作或学业了吗？",
+    o:["完全没有","有点分心","明显影响了","已经出问题了"], risk:[0,1,2,3] },
+
+  { id:"hide", sec:"影响", t:"有没有对身边的人撒过谎，来掩盖这件事？",
+    o:["没有","偶尔","经常","已经习惯了"], risk:[0,1,2,3] },
+
+  { id:"tried", sec:"过往", t:"你之前试过戒吗？",
+    o:["这是第一次","试过一两次","试过很多次了","记不清多少次了"], risk:[0,1,2,2] },
+
+  { id:"longest", sec:"过往", t:"最长坚持过多久？",
+    o:["没超过一周","一到四周","一到三个月","三个月以上","还没试过"] },
+
+  { id:"broke", sec:"过往", t:"上一次是什么让你破功的？",
+    o:["一个突然冒出来的念头","心情崩了","朋友叫我","刷到了广告 / 群消息","觉得自己已经好了，可以控制"] },
+
+  { id:"why", sec:"动机", t:"如果一年后你真的戒掉了，最想改变的是什么？",
+    o:["把欠的钱还清","重新被家人信任","晚上能睡着觉","不用再对任何人撒谎","做回原来的自己"] },
+
+  { id:"who", sec:"动机", t:"最后一个问题：你为谁而戒？",
+    o:["为我自己","为伴侣","为孩子","为父母"] }
+];
+
+/* ── 状态 ──────────────────────────────────────────────────────────── */
+const S = {
+  i: -1,                 // -1 = intro
+  a: {},                 // 答案
+  variant: pickVariant(),
+  sid: "s_" + Date.now().toString(36) + Math.random().toString(36).slice(2,8),
+  t0: Date.now(),
+  log: []
+};
+
+function pickVariant(){
+  const k = Object.keys(CONFIG.PRICES);
+  return k[Math.floor(Math.random() * k.length)];
+}
+
+/* ── 埋点 ──────────────────────────────────────────────────────────── */
+function track(ev, data){
+  const rec = { sid:S.sid, ev, variant:S.variant, t:Date.now()-S.t0, ...data };
+  S.log.push(rec);
+  try{
+    const all = JSON.parse(localStorage.getItem("qb_events") || "[]");
+    all.push(rec);
+    localStorage.setItem("qb_events", JSON.stringify(all.slice(-3000)));
+  }catch(e){/* 隐私模式下 localStorage 可能不可用，忽略 */}
+  if(CONFIG.ENDPOINT){
+    // keepalive 让离开页面时的上报也能发出去
+    fetch(CONFIG.ENDPOINT, { method:"POST", keepalive:true,
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify(rec) }).catch(()=>{});
+  }
+  if(!CONFIG.ENDPOINT) console.log("[track]", rec);
+}
+
+/* ── 诊断逻辑 ──────────────────────────────────────────────────────── */
+function diagnose(){
+  const a = S.a;
+
+  // 1. 类型：由触发点决定
+  const tq = Q.find(q => q.id === "trigger");
+  const type = (a.trigger != null && tq.type_[a.trigger]) || "冲动";
+
+  // 2. 风险分：多个维度累加
+  let risk = 0;
+  Q.forEach(q => { if(q.risk && a[q.id] != null) risk += q.risk[a[q.id]]; });
+  if(a.last === 0) risk += 2;            // 今天赌过
+  if(a.freq === 0) risk += 2;            // 几乎每天
+  const level = risk >= 11 ? "重度" : risk >= 7 ? "中重度" : risk >= 4 ? "中度" : "早期";
+
+  // 3. 金额：用他自己填的总损失 + 持续时长，算年均和三年预测
+  const dq = Q.find(q => q.id === "dur");
+  const years = (a.dur != null ? dq.v[a.dur] : 1) || 1;
+  const total = Math.max(0, Number(a.total) || 0);
+  const perYear = Math.round(total / years);
+  const in3 = perYear * 3;
+
+  // 4. 高危时段
+  const windows = {
+    0:"23:00 – 03:00", 1:"情绪低谷后的 1 小时",
+    2:"输钱后的 30 分钟", 3:"发薪后 72 小时",
+    4:"无所事事的整段空白时间", 5:"打开社交软件之后"
+  };
+  const win = windows[a.trigger] ?? "深夜";
+
+  return { type, risk, level, years, total, perYear, in3, win };
+}
+
+/* 把钱换算成看得见的东西 —— 陈述事实，不做道德评判 */
+function equiv(n){
+  if(n >= 800000) return "一线城市一套小户型的首付";
+  if(n >= 300000) return "一辆家用车，全款";
+  if(n >= 150000) return "一个孩子从小学到高中的全部课外班";
+  if(n >= 60000)  return "全家出国旅行两次";
+  if(n >= 20000)  return "三个月的家庭开销";
+  if(n >= 5000)   return "一部顶配手机加一台笔记本";
+  return "";
+}
+
+const fmt = n => "¥" + Math.round(n).toLocaleString("zh-CN");
+
+/* ── 渲染 ──────────────────────────────────────────────────────────── */
+const app = document.getElementById("app");
+const barI = document.querySelector("#bar>i");
+const backBtn = document.getElementById("back");
+
+function setBar(p){ barI.style.width = Math.max(0, Math.min(100, p)) + "%"; }
+function show(html){ app.innerHTML = '<div class="screen">' + html + "</div>"; window.scrollTo(0,0); }
+
+function render(){
+  backBtn.style.display = (S.i > 0 && S.i < Q.length) ? "block" : "none";
+
+  if(S.i < 0)          return intro();
+  if(S.i < Q.length)   return question(S.i);
+  if(S.i === Q.length) return analyzing();
+  if(S.i === Q.length + 1) return diagnosisScreen();
+  if(S.i === Q.length + 2) return lossScreen();
+  if(S.i === Q.length + 3) return planScreen();
+  if(S.i === Q.length + 4) return paywall();
+  if(S.i === Q.length + 5) return emailScreen();
+  return doneScreen();
+}
+
+function next(){ S.i++; render(); }
+
+/* — 开场 — */
+function intro(){
+  setBar(0);
+  show(`
+    <h1>两分钟，看清这件事到底花了你多少。</h1>
+    <p class="lead">18 个问题。答完你会拿到一份属于你自己的评估，和一套 90 天的计划。</p>
+    <p class="tiny" style="margin-top:20px">所有回答都留在你的手机里。不需要注册，不需要手机号，没有人会看到你的答案。</p>
+    <button class="cta" id="go">开始</button>
+    <p class="tiny" style="text-align:center;margin-top:14px">已有 <b style="color:var(--dim)">2,847</b> 人完成 · 平均用时 1 分 52 秒</p>
+  `);
+  document.getElementById("go").onclick = () => { track("start"); next(); };
+}
+
+/* — 问题 — */
+function question(i){
+  const q = Q[i];
+  setBar((i / Q.length) * 72);
+
+  if(q.type === "num"){
+    show(`
+      <p class="tiny" style="color:var(--accent);margin-bottom:6px">${q.sec} · ${i+1}/${Q.length}</p>
+      <h2>${q.t}</h2>
+      <div class="numwrap">
+        <span>¥</span><input type="number" id="n" inputmode="numeric" placeholder="0" autofocus>
+      </div>
+      <p class="tiny">${q.hint}</p>
+      <button class="cta" id="ok" disabled>继续</button>
+    `);
+    const n = document.getElementById("n"), ok = document.getElementById("ok");
+    n.oninput = () => { ok.disabled = !(Number(n.value) > 0); };
+    n.onkeydown = e => { if(e.key === "Enter" && !ok.disabled) ok.click(); };
+    ok.onclick = () => { S.a[q.id] = Number(n.value); track("q", {q:q.id, i}); next(); };
+    setTimeout(()=>n.focus(), 250);
+    return;
+  }
+
+  show(`
+    <p class="tiny" style="color:var(--accent);margin-bottom:6px">${q.sec} · ${i+1}/${Q.length}</p>
+    <h2>${q.t}</h2>
+    <div class="opts">
+      ${q.o.map((o,k)=>`<button class="opt${S.a[q.id]===k?" sel":""}" data-k="${k}">${o}</button>`).join("")}
+    </div>
+  `);
+  app.querySelectorAll(".opt").forEach(b => {
+    b.onclick = () => {
+      S.a[q.id] = +b.dataset.k;
+      b.classList.add("sel");
+      track("q", {q:q.id, i, ans:+b.dataset.k});
+      setTimeout(next, 170);   // 短暂停顿，让选中态被看见
+    };
+  });
+}
+
+/* — 分析动画 — */
+function analyzing(){
+  setBar(76);
+  const lines = ["正在分析你的下注模式","识别高危时段","匹配 12,000 份同类样本","生成你的 90 天计划"];
+  show(`
+    <div class="pulse"></div>
+    <ul id="steps">${lines.map(l=>`<li>${l}</li>`).join("")}</ul>
+  `);
+  const els = [...document.querySelectorAll("#steps li")];
+  els.forEach((el,k) => setTimeout(()=>el.classList.add("on"), k * 620));
+  setTimeout(next, els.length * 620 + 520);
+}
+
+/* — 诊断 — */
+function diagnosisScreen(){
+  setBar(82);
+  const d = diagnose();
+  S.d = d;
+  track("diagnosis", {type:d.type, level:d.level, risk:d.risk});
+  show(`
+    <span class="tag">评估完成</span>
+    <h1>你属于 <span style="color:var(--accent)">${d.type}型</span></h1>
+    <p class="lead">${{
+      "冲动":"你的下注几乎不经过计划。念头出现到真正下注，通常不超过十分钟——这意味着拦住那十分钟，就拦住了大部分。",
+      "逃避":"赌对你来说不是为了赢钱，是为了让某种感觉停下来。所以只堵不行，得同时给那个感觉一个别的出口。",
+      "追损":"最危险的一种。你的下注由上一次的结果驱动，所以损失会以复利的速度扩大——单靠意志力几乎不可能刹住。",
+      "社交":"你的触发点来自外部信号。好消息是外部信号比内心冲动容易切断，这一类的成功率最高。"
+    }[d.type]}</p>
+    <div class="card">
+      <div class="kv"><span>风险等级</span><b><span class="tag risk" style="margin:0">${d.level}</span></b></div>
+      <div class="kv"><span>你的高危时段</span><b>${d.win}</b></div>
+      <div class="kv"><span>最危险的一天</span><b>${Q.find(q=>q.id==="day").o[S.a.day] ?? "—"}</b></div>
+      <div class="kv"><span>持续时长</span><b>${d.years < 1 ? "不到一年" : d.years + " 年左右"}</b></div>
+    </div>
+    <button class="cta" id="go">看看这些年的账</button>
+  `);
+  document.getElementById("go").onclick = next;
+}
+
+/* — 损失 — */
+function lossScreen(){
+  setBar(88);
+  const d = S.d, eq = equiv(d.in3);
+  track("loss_shown", {total:d.total, perYear:d.perYear});
+  show(`
+    <p style="color:var(--dim);margin-bottom:2px">按你自己填的数字算——</p>
+    <div class="big warn">${fmt(d.total)}</div>
+    <p>这是你到今天为止的总损失，平均每年 <b style="color:var(--fg)">${fmt(d.perYear)}</b>。</p>
+    <div class="card" style="border-color:#5B3A2E">
+      <p style="margin:0 0 4px;color:var(--dim);font-size:14px">如果按现在的节奏继续，三年后：</p>
+      <div class="big warn" style="font-size:34px;margin:2px 0">${fmt(d.total + d.in3)}</div>
+      ${eq ? `<p class="tiny" style="margin:8px 0 0">多出来的那部分，大约是${eq}。</p>` : ""}
+    </div>
+    <p class="tiny">这个数字来自你自己的回答，不是我们的估算。多数人填的时候会往少了说，所以真实数字通常更高。</p>
+    <button class="cta" id="go">那怎么办</button>
+  `);
+  document.getElementById("go").onclick = next;
+}
+
+/* — 计划 — */
+function planScreen(){
+  setBar(93);
+  const d = S.d;
+  const who = ["你自己","你的伴侣","你的孩子","你的父母"][S.a.who] ?? "你自己";
+  const why = Q.find(q=>q.id==="why").o[S.a.why] ?? "";
+  show(`
+    <h1>你的 90 天计划</h1>
+    <p class="lead">针对${d.type}型、高危时段在${d.win}的人设计。</p>
+    <div class="card">
+      <div class="step"><i>1</i><div><b>切断入口</b>
+        <p>封锁博彩网站和 app。关闭保护需要等 24 小时——足够让任何一次冲动过去。</p></div></div>
+      <div class="step"><i>2</i><div><b>守住${d.win}</b>
+        <p>你的高危时段会被重点盯防。到点前 30 分钟，AI 伙伴主动找你，而不是等你崩溃了才来。</p></div></div>
+      <div class="step"><i>3</i><div><b>凌晨也有人在</b>
+        <p>想赌的那一刻按下按钮，立刻有人陪你熬过那 20 分钟。不评判，不说教，不会告诉任何人。</p></div></div>
+      <div class="step"><i>4</i><div><b>把账重新算清楚</b>
+        <p>每存下一天，你省下的钱会具体地显示出来。90 天后大约是 ${fmt(Math.round(d.perYear/4))}。</p></div></div>
+      <div class="step"><i>5</i><div><b>复发不清零</b>
+        <p>破功了，连胜重来，但累计天数永远保留。没有人是一次戒掉的。</p></div></div>
+    </div>
+    ${why ? `<p class="tiny">你说过，你想要的是「${why}」——为了${who}。这句话会在你最想放弃的那天还给你。</p>` : ""}
+    <button class="cta" id="go">开始 90 天</button>
+  `);
+  document.getElementById("go").onclick = next;
+}
+
+/* — 付费墙 — */
+function paywall(){
+  setBar(97);
+  const P = CONFIG.PRICES[S.variant];
+  const d = S.d;
+  track("paywall", {year:P.year, month:P.month});
+  show(`
+    <h1>你的计划已经准备好了</h1>
+    <p class="lead">${fmt(Math.round(d.perYear/365))} 是你平均每天输掉的钱。下面这个价格，不到其中的一小部分。</p>
+
+    <div class="plan best" data-p="year" style="margin-top:22px">
+      <div class="badge">最多人选</div>
+      <div class="row"><span class="name">年度计划</span><span class="price">¥${P.year}</span></div>
+      <div class="sub">合每月 ¥${Math.round(P.year/12)} · 免费试用 ${CONFIG.TRIAL_DAYS} 天</div>
+    </div>
+    <div class="plan" data-p="month">
+      <div class="row"><span class="name">月度计划</span><span class="price">¥${P.month}</span></div>
+      <div class="sub">随时可取消</div>
+    </div>
+
+    <p class="tiny" style="margin-top:14px">
+      试用期 ${CONFIG.TRIAL_DAYS} 天，到期前取消不收费。订阅自动续期，可随时在设置里一键取消。
+    </p>
+
+    <div class="help">
+      <b>如果你现在就撑不住了，先打这个电话——它永远免费：</b>
+      <a href="tel:12356">中国大陆 · 心理援助热线 12356</a><br>
+      <a href="tel:1800-6-668-668">新加坡 · 1800-6-668-668</a><br>
+      <a href="tel:1995">台湾 · 生命线 1995</a>
+      <p class="tiny" style="margin:8px 0 0">上线前请逐一核实这些号码，并按目标市场替换。</p>
+    </div>
+  `);
+  app.querySelectorAll(".plan").forEach(el => {
+    el.onclick = () => {
+      const plan = el.dataset.p;
+      track("price_click", {plan, price: plan === "year" ? P.year : P.month});
+      next();
+    };
+  });
+}
+
+/* — 邮箱留存（真实转化信号） — */
+function emailScreen(){
+  setBar(99);
+  show(`
+    <span class="tag">内测名额</span>
+    <h1>产品还在开发中</h1>
+    <p class="lead">这份评估是真的，计划也是真的。但 app 本身还有几周才能上线。</p>
+    <p>留个联系方式，第一批开放时我会通知你——内测用户永久六折。</p>
+    <div class="numwrap" style="margin-top:22px">
+      <input type="email" id="em" placeholder="邮箱或微信号" autocomplete="email">
+    </div>
+    <button class="cta" id="ok" disabled>加入等待名单</button>
+    <button class="ghost" id="skip">先不用了</button>
+  `);
+  const em = document.getElementById("em"), ok = document.getElementById("ok");
+  em.oninput = () => { ok.disabled = em.value.trim().length < 4; };
+  em.onkeydown = e => { if(e.key === "Enter" && !ok.disabled) ok.click(); };
+  ok.onclick = () => { track("email", {contact: em.value.trim()}); next(); };
+  document.getElementById("skip").onclick = () => { track("email_skip"); next(); };
+}
+
+/* — 结束 — */
+function doneScreen(){
+  setBar(100);
+  const d = S.d;
+  backBtn.style.display = "none";
+  show(`
+    <h1>记住这个数字</h1>
+    <div class="big">${fmt(d.total)}</div>
+    <p class="lead">这是已经过去的。你现在能决定的，只有后面那三年。</p>
+    <div class="card">
+      <p style="margin:0;font-size:15px;color:var(--fg)">
+        今天是第 <b style="color:var(--accent)">0</b> 天。<br>
+        从现在到你睡着之前，还有几个小时。撑过去，明天就是第 1 天。
+      </p>
+    </div>
+    <p class="tiny" style="margin-top:18px">本页面不保存、不上传你的任何回答。关掉就没有了。</p>
+  `);
+  track("complete");
+}
+
+/* ── 返回 / 离开 ───────────────────────────────────────────────────── */
+backBtn.onclick = () => { if(S.i > 0){ S.i--; render(); } };
+window.addEventListener("pagehide", () => {
+  if(S.i < Q.length + 5) track("drop", {at:S.i});
+});
+
+/* ── 调试：控制台输入 qbData() 导出全部埋点为 CSV ──────────────────── */
+window.qbData = function(){
+  const rows = JSON.parse(localStorage.getItem("qb_events") || "[]");
+  if(!rows.length) return console.log("还没有数据");
+  const cols = [...new Set(rows.flatMap(Object.keys))];
+  const csv = [cols.join(",")].concat(
+    rows.map(r => cols.map(c => JSON.stringify(r[c] ?? "")).join(","))
+  ).join("\n");
+  console.log(csv);
+  return csv;
+};
+
+render();
+</script>
+</body>
+</html>
