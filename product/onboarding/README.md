@@ -3,8 +3,27 @@
 一个单文件网页。**目的不是上线，是在写第一行 app 代码之前，拿到三个真实数字。**
 
 ```
-product/onboarding/index.html   ← 全部内容，零依赖，双击就能开
+product/onboarding/
+├── README.md          ← 本文件。内部文档，不部署
+└── public/            ← 部署目录，只有这里的内容会被公开访问
+    ├── index.html     ← 全部产品内容，零依赖，双击就能开
+    └── _headers       ← 安全与隐私响应头
 ```
+
+**目录是刻意分开的**：README 里有定价策略分析和「上线前必做」清单，如果和产品放同一层，它会被公开在 `你的域名/README.md`。
+
+## 部署（Cloudflare Pages，免费）
+
+Workers & Pages → Create → Pages → Connect to Git → 选本仓库：
+
+| 字段 | 填什么 |
+|---|---|
+| 分支 | `claude/project-ideas-discussion-5kw9jd` |
+| 框架预设 | None |
+| 构建命令 | 留空 |
+| **构建输出目录** | **`product/onboarding/public`** |
+
+之后每次推代码自动重新部署。
 
 ---
 

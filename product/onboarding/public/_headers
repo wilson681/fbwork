@@ -1,0 +1,14 @@
+/*
+  # 最重要的一条：用户点「查找当地热线」跳出去时，不泄露他是从哪来的。
+  # 一个隐私承诺是整个产品前提的 app，不能在 referrer 上漏底。
+  Referrer-Policy: no-referrer
+
+  # 不允许被任何站点嵌进 iframe（防点击劫持，也防被赌站反向套壳）
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'; object-src 'none'; base-uri 'none'
+
+  X-Content-Type-Options: nosniff
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), interest-cohort=()
+
+  # 注意：故意没有限制 connect-src。CONFIG.ENDPOINT 要 POST 到外部埋点
+  # 地址，加了限制会静默拦掉上报——你会以为没人填问卷，其实是数据发不出去。
